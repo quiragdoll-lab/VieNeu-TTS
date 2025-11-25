@@ -23,14 +23,21 @@ try:
         codec_device=device
     )
     print("✅ Model đã tải xong!")
+
+    print("🔄 Đang kích hoạt chế độ Dual-TTS (VN + EN)...")
+try:
+    tts = make_dual_tts(tts, device=device)
+    print("✅ Dual-TTS đã sẵn sàng! (VieNeu-TTS + English TTS)")
+except Exception as e:
+    print("⚠️ Không thể kích hoạt Dual-TTS:", e)
+
 except Exception as e:
     print(f"⚠️ Không thể tải model (Chế độ UI Demo): {e}")
     class MockTTS:
         def encode_reference(self, path): return None
         def infer(self, text, ref, ref_text): 
             import numpy as np
-            # Giả lập độ trễ để test tính năng đo thời gian
-            time.sleep(1.5) 
+            time.sleep(1.5)
             return np.random.uniform(-0.5, 0.5, 24000*3)
     tts = MockTTS()
 
