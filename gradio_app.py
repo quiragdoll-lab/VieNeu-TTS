@@ -5,8 +5,8 @@ import torch
 from vieneu_tts import VieNeuTTS
 import os
 import time
-import re
-from phonemizer import phonemize
+from dual_tts import make_dual_tts
+import numpy as np
 
 print("⏳ Đang khởi động VieNeu-TTS...")
 
@@ -49,40 +49,6 @@ VOICE_SAMPLES = {
 }
 
 # --- 3. HELPER FUNCTIONS ---
-def split_by_language(text):
-    """
-    Tách các từ tiếng Anh ra khỏi câu tiếng Việt.
-    (Chỉ nhận các cụm a-z để tránh nhầm tiếng Việt)
-    """
-    eng_pattern = re.compile(r"^[A-Za-z]+$")
-    words = text.split()
-
-    vi_parts = []
-    en_parts = []
-
-    for w in words:
-        if eng_pattern.fullmatch(w):
-            en_parts.append(w)
-        else:
-            vi_parts.append(w)
-
-    return " ".join(vi_parts), " ".join(en_parts)
-
-
-def en_to_ipa(text_en):
-    """
-    Chuyển tiếng Anh sang IPA bằng phonemizer.
-    """
-    if not text_en.strip():
-        return ""
-    ipa = phonemize(
-        text_en,
-        language="en-us",
-        backend="espeak",
-        strip=True,
-        preserve_punctuation=True,
-    )
-    return ipa
 def load_reference_info(voice_choice):
     if voice_choice in VOICE_SAMPLES:
         audio_path = VOICE_SAMPLES[voice_choice]["audio"]
@@ -129,25 +95,11 @@ def synthesize_speech(text, voice_choice, custom_audio, custom_text, mode_tab):
 
         # Inference & Đo thời gian
         print(f"📝 Text: {text[:50]}...")
-
-        # --- TÁCH TIẾNG ANH + CHUYỂN SANG IPA ---
-        vi_text, en_text = split_by_language(text)
         
-        if en_text.strip():
-            ipa_en = en_to_ipa(en_text)
-            print("🔤 Từ tiếng Anh phát hiện:", en_text)
-            print("🔠 IPA tiếng Anh:", ipa_en)
-            
-            final_text = vi_text + " " + ipa_en
-        else:
-            final_text = text
+        start_time = time.time() # <--- Bắt đầu bấm giờ
         
-        print("📌 Văn bản đưa vào TTS:", final_text)
-        
-        # --- INFERENCE ---
-        start_time = time.time()
         ref_codes = tts.encode_reference(ref_audio_path)
-        wav = tts.infer(final_text, ref_codes, ref_text_raw)
+        wav = tts.infer(text, ref_codes, ref_text_raw)
         
         end_time = time.time()   # <--- Kết thúc bấm giờ
         process_time = end_time - start_time # <--- Tính thời gian xử lý
