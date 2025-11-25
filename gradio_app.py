@@ -1,10 +1,13 @@
 import gradio as gr
 import soundfile as sf
+import re
+from phonemizer import phonemize
 import tempfile
 import torch
 from vieneu_tts import VieNeuTTS
 import os
 import time
+
 
 print("⏳ Đang khởi động VieNeu-TTS...")
 
@@ -31,6 +34,41 @@ except Exception as e:
             time.sleep(1.5) 
             return np.random.uniform(-0.5, 0.5, 24000*3)
     tts = MockTTS()
+
+def split_by_language(text):
+    """
+    Tách các từ tiếng Anh ra khỏi câu tiếng Việt.
+    (Chỉ nhận các cụm a-z để tránh nhầm tiếng Việt)
+    """
+    eng_pattern = re.compile(r"^[A-Za-z]+$")
+    words = text.split()
+
+    vi_parts = []
+    en_parts = []
+
+    for w in words:
+        if eng_pattern.fullmatch(w):
+            en_parts.append(w)
+        else:
+            vi_parts.append(w)
+
+    return " ".join(vi_parts), " ".join(en_parts)
+
+
+def en_to_ipa(text_en):
+    """
+    Chuyển tiếng Anh sang IPA bằng phonemizer.
+    """
+    if not text_en.strip():
+        return ""
+    ipa = phonemize(
+        text_en,
+        language="en-us",
+        backend="espeak",
+        strip=True,
+        preserve_punctuation=True,
+    )
+    return ipa
 
 # --- 2. DATA ---
 VOICE_SAMPLES = {
