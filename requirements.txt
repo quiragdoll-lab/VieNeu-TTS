@@ -1,10 +1,8 @@
-TTS
-soundfile
-numpy
-phonemizer
+phonemizer>=3.3.0
 torch
 torchvision
 torchaudio
 gradio
 neucodec>=0.0.4
 librosa>=0.11.0
+numpy
