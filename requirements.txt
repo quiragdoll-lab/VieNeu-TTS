@@ -1,4 +1,7 @@
-phonemizer>=3.3.0
+TTS
+soundfile
+numpy
+phonemizer
 torch
 torchvision
 torchaudio
