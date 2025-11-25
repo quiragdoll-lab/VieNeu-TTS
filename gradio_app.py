@@ -311,4 +311,4 @@ with gr.Blocks(theme=theme, css=css, title="VieNeu-TTS Studio") as demo:
     )
 
 if __name__ == "__main__":
-    demo.queue().launch()
+    demo.queue().launch(share=False)
