@@ -24,9 +24,15 @@ try:
     )
     print("✅ Model đã tải xong!")
 
+    # --- THÊM VÀO NGAY SAU ĐÂY ---
     print("🔄 Đang kích hoạt chế độ Dual-TTS (VN + EN)...")
-    tts = make_dual_tts(tts, device=device)
-    print("✅ Dual-TTS đã sẵn sàng! (VieNeu-TTS + English TTS)")
+    try:
+        tts = make_dual_tts(tts, device=device)
+        print("✅ Dual-TTS đã sẵn sàng! (VieNeu-TTS + English TTS)")
+    except Exception as e:
+        print("⚠️ Không thể kích hoạt Dual-TTS:", e)
+    # --------------------------------
+
 except Exception as e:
     print(f"⚠️ Không thể tải model (Chế độ UI Demo): {e}")
     class MockTTS:
@@ -36,6 +42,7 @@ except Exception as e:
             time.sleep(1.5)
             return np.random.uniform(-0.5, 0.5, 24000*3)
     tts = MockTTS()
+
 
 # --- 2. DATA ---
 VOICE_SAMPLES = {
