@@ -25,12 +25,8 @@ try:
     print("✅ Model đã tải xong!")
 
     print("🔄 Đang kích hoạt chế độ Dual-TTS (VN + EN)...")
-try:
     tts = make_dual_tts(tts, device=device)
     print("✅ Dual-TTS đã sẵn sàng! (VieNeu-TTS + English TTS)")
-except Exception as e:
-    print("⚠️ Không thể kích hoạt Dual-TTS:", e)
-
 except Exception as e:
     print(f"⚠️ Không thể tải model (Chế độ UI Demo): {e}")
     class MockTTS:
