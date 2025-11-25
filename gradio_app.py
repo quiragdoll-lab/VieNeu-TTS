@@ -1,22 +1,21 @@
-    import gradio as gr
-    import soundfile as sf
-    import re
-    from phonemizer import phonemize
-    import tempfile
-    import torch
-    from vieneu_tts import VieNeuTTS
-    import os
-    import time
-    
-    
-    print("⏳ Đang khởi động VieNeu-TTS...")
-    
-    # --- 1. SETUP MODEL ---
-    print("📦 Đang tải model...")
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    print(f"🖥️ Sử dụng thiết bị: {device.upper()}")
-    
-    try:
+import gradio as gr
+import soundfile as sf
+import tempfile
+import torch
+from vieneu_tts import VieNeuTTS
+import os
+import time
+import re
+from phonemizer import phonemize
+
+print("⏳ Đang khởi động VieNeu-TTS...")
+
+# --- 1. SETUP MODEL ---
+print("📦 Đang tải model...")
+device = "cuda" if torch.cuda.is_available() else "cpu"
+print(f"🖥️ Sử dụng thiết bị: {device.upper()}")
+
+try:
     tts = VieNeuTTS(
         backbone_repo="pnnbao-ump/VieNeu-TTS",
         backbone_device=device,
@@ -24,7 +23,7 @@
         codec_device=device
     )
     print("✅ Model đã tải xong!")
-    except Exception as e:
+except Exception as e:
     print(f"⚠️ Không thể tải model (Chế độ UI Demo): {e}")
     class MockTTS:
         def encode_reference(self, path): return None
@@ -34,28 +33,43 @@
             time.sleep(1.5) 
             return np.random.uniform(-0.5, 0.5, 24000*3)
     tts = MockTTS()
-    
-    def split_by_language(text):
+
+# --- 2. DATA ---
+VOICE_SAMPLES = {
+    "Bình (nam miền Bắc)": {"audio": "./sample/Bình (nam miền Bắc).wav", "text": "./sample/Bình (nam miền Bắc).txt"},
+    "Vĩnh (nam miền Nam)": {"audio": "./sample/Vĩnh (nam miền Nam).wav", "text": "./sample/Vĩnh (nam miền Nam).txt"},
+    "Tuyên (nam miền Bắc)": {"audio": "./sample/Tuyên (nam miền Bắc).wav", "text": "./sample/Tuyên (nam miền Bắc).txt"},
+    "Nguyên (nam miền Nam)": {"audio": "./sample/Nguyên (nam miền Nam).wav", "text": "./sample/Nguyên (nam miền Nam).txt"},
+    "Sơn (nam miền Nam)": {"audio": "./sample/Sơn (nam miền Nam).wav", "text": "./sample/Sơn (nam miền Nam).txt"},
+    "Hương (nữ miền Bắc)": {"audio": "./sample/Hương (nữ miền Bắc).wav", "text": "./sample/Hương (nữ miền Bắc).txt"},
+    "Ly (nữ miền Bắc)": {"audio": "./sample/Ly (nữ miền Bắc).wav", "text": "./sample/Ly (nữ miền Bắc).txt"},
+    "Ngọc (nữ miền Bắc)": {"audio": "./sample/Ngọc (nữ miền Bắc).wav", "text": "./sample/Ngọc (nữ miền Bắc).txt"},
+    "Đoan (nữ miền Nam)": {"audio": "./sample/Đoan (nữ miền Nam).wav", "text": "./sample/Đoan (nữ miền Nam).txt"},
+    "Dung (nữ miền Nam)": {"audio": "./sample/Dung (nữ miền Nam).wav", "text": "./sample/Dung (nữ miền Nam).txt"}
+}
+
+# --- 3. HELPER FUNCTIONS ---
+def split_by_language(text):
     """
     Tách các từ tiếng Anh ra khỏi câu tiếng Việt.
     (Chỉ nhận các cụm a-z để tránh nhầm tiếng Việt)
     """
     eng_pattern = re.compile(r"^[A-Za-z]+$")
     words = text.split()
-    
+
     vi_parts = []
     en_parts = []
-    
+
     for w in words:
         if eng_pattern.fullmatch(w):
             en_parts.append(w)
         else:
             vi_parts.append(w)
-    
+
     return " ".join(vi_parts), " ".join(en_parts)
-    
-    
-    def en_to_ipa(text_en):
+
+
+def en_to_ipa(text_en):
     """
     Chuyển tiếng Anh sang IPA bằng phonemizer.
     """
@@ -69,23 +83,7 @@
         preserve_punctuation=True,
     )
     return ipa
-    
-    # --- 2. DATA ---
-    VOICE_SAMPLES = {
-    "Bình (nam miền Bắc)": {"audio": "./sample/Bình (nam miền Bắc).wav", "text": "./sample/Bình (nam miền Bắc).txt"},
-    "Vĩnh (nam miền Nam)": {"audio": "./sample/Vĩnh (nam miền Nam).wav", "text": "./sample/Vĩnh (nam miền Nam).txt"},
-    "Tuyên (nam miền Bắc)": {"audio": "./sample/Tuyên (nam miền Bắc).wav", "text": "./sample/Tuyên (nam miền Bắc).txt"},
-    "Nguyên (nam miền Nam)": {"audio": "./sample/Nguyên (nam miền Nam).wav", "text": "./sample/Nguyên (nam miền Nam).txt"},
-    "Sơn (nam miền Nam)": {"audio": "./sample/Sơn (nam miền Nam).wav", "text": "./sample/Sơn (nam miền Nam).txt"},
-    "Hương (nữ miền Bắc)": {"audio": "./sample/Hương (nữ miền Bắc).wav", "text": "./sample/Hương (nữ miền Bắc).txt"},
-    "Ly (nữ miền Bắc)": {"audio": "./sample/Ly (nữ miền Bắc).wav", "text": "./sample/Ly (nữ miền Bắc).txt"},
-    "Ngọc (nữ miền Bắc)": {"audio": "./sample/Ngọc (nữ miền Bắc).wav", "text": "./sample/Ngọc (nữ miền Bắc).txt"},
-    "Đoan (nữ miền Nam)": {"audio": "./sample/Đoan (nữ miền Nam).wav", "text": "./sample/Đoan (nữ miền Nam).txt"},
-    "Dung (nữ miền Nam)": {"audio": "./sample/Dung (nữ miền Nam).wav", "text": "./sample/Dung (nữ miền Nam).txt"}
-    }
-    
-    # --- 3. HELPER FUNCTIONS ---
-    def load_reference_info(voice_choice):
+def load_reference_info(voice_choice):
     if voice_choice in VOICE_SAMPLES:
         audio_path = VOICE_SAMPLES[voice_choice]["audio"]
         text_path = VOICE_SAMPLES[voice_choice]["text"]
@@ -99,8 +97,8 @@
         except Exception as e:
             return None, f"❌ Lỗi: {str(e)}"
     return None, ""
-    
-    def synthesize_speech(text, voice_choice, custom_audio, custom_text, mode_tab):
+
+def synthesize_speech(text, voice_choice, custom_audio, custom_text, mode_tab):
     try:
         if not text or text.strip() == "":
             return None, "⚠️ Vui lòng nhập văn bản cần tổng hợp!"
@@ -108,7 +106,7 @@
         # --- LOGIC CHECK LIMIT 250 ---
         if len(text) > 250:
             return None, f"❌ Văn bản quá dài ({len(text)}/250 ký tự)! Vui lòng cắt ngắn lại để đảm bảo chất lượng."
-    
+
         # Logic chọn Reference
         if mode_tab == "custom_mode": 
             if custom_audio is None or not custom_text:
@@ -128,21 +126,21 @@
             with open(ref_text_path, "r", encoding="utf-8") as f:
                 ref_text_raw = f.read()
             print(f"🎤 Mode: Preset Voice ({voice_choice})")
-    
+
         # Inference & Đo thời gian
         print(f"📝 Text: {text[:50]}...")
-    
+
         # --- TÁCH TIẾNG ANH + CHUYỂN SANG IPA ---
         vi_text, en_text = split_by_language(text)
         
         if en_text.strip():
-        ipa_en = en_to_ipa(en_text)
-        print("🔤 Từ tiếng Anh phát hiện:", en_text)
-        print("🔠 IPA tiếng Anh:", ipa_en)
-        
-        final_text = vi_text + " " + ipa_en
+            ipa_en = en_to_ipa(en_text)
+            print("🔤 Từ tiếng Anh phát hiện:", en_text)
+            print("🔠 IPA tiếng Anh:", ipa_en)
+            
+            final_text = vi_text + " " + ipa_en
         else:
-        final_text = text
+            final_text = text
         
         print("📌 Văn bản đưa vào TTS:", final_text)
         
@@ -161,28 +159,28 @@
         
         # <--- Cập nhật thông báo kết quả
         return output_path, f"✅ Thành công! (Mất {process_time:.2f} giây để tạo)"
-    
+
     except Exception as e:
         import traceback
         traceback.print_exc()
         return None, f"❌ Lỗi hệ thống: {str(e)}"
-    
-    # --- 4. UI SETUP ---
-    theme = gr.themes.Ocean(
+
+# --- 4. UI SETUP ---
+theme = gr.themes.Ocean(
     primary_hue="indigo",
     secondary_hue="cyan",
     neutral_hue="slate",
     font=[gr.themes.GoogleFont('Inter'), 'ui-sans-serif', 'system-ui'],
-    ).set(
+).set(
     button_primary_background_fill="linear-gradient(90deg, #6366f1 0%, #0ea5e9 100%)",
     button_primary_background_fill_hover="linear-gradient(90deg, #4f46e5 0%, #0284c7 100%)",
     block_shadow="0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)",
-    )
-    
-    # <--- CSS ĐÃ SỬA (Background xanh đen + Chữ sáng)
-    css = """
-    .container { max-width: 1200px; margin: auto; }
-    .header-box { 
+)
+
+# <--- CSS ĐÃ SỬA (Background xanh đen + Chữ sáng)
+css = """
+.container { max-width: 1200px; margin: auto; }
+.header-box { 
     text-align: center; 
     margin-bottom: 25px; 
     padding: 25px; 
@@ -190,8 +188,8 @@
     border-radius: 12px; 
     border: 1px solid #334155; 
     box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
-    }
-    .header-title { 
+}
+.header-title { 
     font-size: 2.5rem; 
     font-weight: 800; 
     color: white; /* Chữ trắng */
@@ -199,23 +197,23 @@
     -webkit-background-clip: text; 
     -webkit-text-fill-color: transparent; 
     margin-bottom: 10px; 
-    }
-    .header-desc {
+}
+.header-desc {
     font-size: 1.1rem; 
     color: #cbd5e1; /* Màu xám sáng (Slate-300) */
     margin-bottom: 15px;
-    }
-    .link-group a { 
+}
+.link-group a { 
     text-decoration: none; 
     margin: 0 10px; 
     font-weight: 600; 
     color: #94a3b8; /* Màu link sáng hơn chút */
     transition: color 0.2s; 
-    }
-    .link-group a:hover { color: #38bdf8; text-shadow: 0 0 5px rgba(56, 189, 248, 0.5); }
-    
-    .status-box { font-weight: bold; text-align: center; border: none; background: transparent; }
-    .warning-note { 
+}
+.link-group a:hover { color: #38bdf8; text-shadow: 0 0 5px rgba(56, 189, 248, 0.5); }
+
+.status-box { font-weight: bold; text-align: center; border: none; background: transparent; }
+.warning-note { 
     background-color: #fff7ed; 
     border-left: 4px solid #f97316; 
     padding: 12px; 
@@ -224,10 +222,10 @@
     border-radius: 4px;
     margin-top: 10px;
     margin-bottom: 10px;
-    }
-    """
-    
-    EXAMPLES_LIST = [
+}
+"""
+
+EXAMPLES_LIST = [
     # Nam Miền Nam
     ["Về miền Tây không chỉ để ngắm nhìn sông nước hữu tình, mà còn để cảm nhận tấm chân tình của người dân nơi đây. Cùng ngồi xuồng ba lá len lỏi qua rặng dừa nước, nghe câu vọng cổ ngọt ngào thì còn gì bằng.", "Vĩnh (nam miền Nam)"],
     
@@ -248,15 +246,15 @@
     
     # Nữ Miền Bắc
     ["Dưới cơn mưa phùn lất phất của những ngày cuối đông, em khẽ nép vào vai anh, cảm nhận hơi ấm lan tỏa. Những khoảnh khắc bình dị như thế này khiến em nhận ra rằng, hạnh phúc đôi khi chỉ đơn giản là được ở bên nhau.", "Ngọc (nữ miền Bắc)"],
-    
+
     # Nữ Miền Bắc
     ["Thay mặt phi hành đoàn, xin chào mừng quý khách đến với chuyến bay vi en 2024. Quý khách vui lòng thắt dây an toàn, dựng thẳng lưng ghế và gập bàn ăn phía trước để chuẩn bị cho máy bay cất cánh trong ít phút nữa.", "Hương (nữ miền Bắc)"],
     
     # Nữ Miền Bắc
     ["Ngày xửa ngày xưa, ở một ngôi làng nọ có cô Tấm xinh đẹp, nết na nhưng sớm mồ côi mẹ. Dù bị mẹ kế và Cám hãm hại đủ đường, Tấm vẫn giữ được tấm lòng lương thiện và cuối cùng tìm được hạnh phúc xứng đáng.", "Ly (nữ miền Bắc)"],
-    ]
-    
-    with gr.Blocks(theme=theme, css=css, title="VieNeu-TTS Studio") as demo:
+]
+
+with gr.Blocks(theme=theme, css=css, title="VieNeu-TTS Studio") as demo:
     
     with gr.Column(elem_classes="container"):
         # Header - Cập nhật class cho HTML
@@ -303,28 +301,28 @@
                     with gr.Accordion("Thông tin giọng mẫu", open=False):
                         ref_audio_preview = gr.Audio(label="Audio mẫu", interactive=False, type="filepath")
                         ref_text_preview = gr.Markdown("...")
-    
+
                 with gr.TabItem("🎙️ Giọng tùy chỉnh (Custom)", id="custom_mode"):
                     gr.Markdown("Tải lên giọng của bạn (Zero-shot Cloning)")
                     custom_audio = gr.Audio(label="File ghi âm (.wav)", type="filepath")
                     custom_text = gr.Textbox(label="Nội dung ghi âm", placeholder="Nhập chính xác lời thoại...")
-    
+
             current_mode = gr.Textbox(visible=False, value="preset_mode")
             btn_generate = gr.Button("Tổng hợp giọng nói", variant="primary", size="lg")
-    
+
         # --- RIGHT: OUTPUT ---
         with gr.Column(scale=2):
             gr.Markdown("### 🎧 Kết quả")
             with gr.Group():
                 audio_output = gr.Audio(label="Audio đầu ra", type="filepath", show_download_button=True, autoplay=True)
                 status_output = gr.Textbox(label="Trạng thái", show_label=False, elem_classes="status-box", placeholder="Sẵn sàng...")
-    
+
     # --- EXAMPLES ---
     with gr.Row(elem_classes="container"):
         with gr.Column():
             gr.Markdown("### 📚 Ví dụ mẫu")
             gr.Examples(examples=EXAMPLES_LIST, inputs=[text_input, voice_select], label="Thử nghiệm nhanh")
-    
+
     # --- LOGIC ---
     def update_count(text):
         l = len(text)
@@ -338,16 +336,16 @@
             color = "#64748B" # Gray
             msg = f"{l} / 250 ký tự"
         return f"<div style='text-align: right; color: {color}; font-size: 0.8rem; font-weight: bold'>{msg}</div>"
-    
+
     text_input.change(update_count, text_input, char_count)
-    
+
     def update_ref_preview(voice):
         audio, text = load_reference_info(voice)
         return audio, f"> *\"{text}\"*"
     
     voice_select.change(update_ref_preview, voice_select, [ref_audio_preview, ref_text_preview])
     demo.load(update_ref_preview, voice_select, [ref_audio_preview, ref_text_preview])
-    
+
     # Tab handling - FIXED WITH *ARGS
     tab_preset = tabs.children[0]
     tab_custom = tabs.children[1]
@@ -355,12 +353,16 @@
     # Dùng *args để nhận bất kỳ số lượng tham số nào (0 hoặc 1), tránh lỗi Warning
     tab_preset.select(fn=lambda *args: "preset_mode", inputs=None, outputs=current_mode)
     tab_custom.select(fn=lambda *args: "custom_mode", inputs=None, outputs=current_mode)
-    
+
     btn_generate.click(
         fn=synthesize_speech,
         inputs=[text_input, voice_select, custom_audio, custom_text, current_mode],
         outputs=[audio_output, status_output]
     )
-    
-    if __name__ == "__main__":
-    demo.queue().launch(share=False)
+
+if __name__ == "__main__":
+    demo.queue().launch(
+        server_name="127.0.0.1", 
+        server_port=7860, 
+        share=False
+    )
